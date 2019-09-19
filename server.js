@@ -1,64 +1,76 @@
 require('dotenv').config();
 const express = require('express');
 const morgan = require('morgan');
+const helmet = require('helmet');
 const movies = require('./movies.json');
+const cors = require('cors');
 
 const app = express();
 
 app.use(morgan('dev'));
+app.use(cors());
+app.use(helmet());
 
 app.use(function validateBearerToken(req, res, next) {
   const bearerToken = req.get('Authorization');
+  const formatToken = bearerToken.split(' ')[1];
+
   const apiToken = process.env.API_TOKEN;
-  if (bearerToken !== apiToken) {
+  if (formatToken !== apiToken) {
     return res.status(401).json({ error: 'Unauthorized request' });
   }
   next();
 });
 
 app.get('/movies', (req, res) => {
-  const { genre = '', average = '', vote = '' } = req.query;
-  console.log(genre, 'genre');
+  const { genre = '', average_vote = '', country = '' } = req.query;
   let response = movies;
   const keys = Object.keys(req.query);
   function test(keys) {
+    let result = true;
     if (Object.keys(req.query).length) {
-      const genre = keys.map(key => key.includes('genre'));
-      const average = keys.map(key => key.includes('average'));
-      const vote = keys.map(key => key.includes('vote'));
-      //console.log(genre, 'genre', average, 'average', vote, 'vote');
-      //console.log(Object.values(genre)[0]);
-      if (
-        Object.values(genre)[0] === false &&
-        Object.values(average)[0] === false &&
-        Object.values(vote)[0] === false
-      ) {
-        return false;
-      }
-    } else return true;
-  }
+      const thanos = keys.every(
+        string =>
+          string === 'genre' ||
+          string === 'average_vote' ||
+          string === 'country'
+      );
+      console.log('thanos', thanos);
 
+      if (!thanos) {
+        result = false;
+      }
+    }
+    return result;
+  }
+  test(keys);
+  console.log(test(keys), 'test');
   if (test(keys)) {
     if (genre) {
-      console.log('genre ran');
-      //console.log('genre');
-      // console.log(genre);
-      //console.log(movies, 'movies');
-      //console.log(response.map(movie => movie.genre));
-      response.filter(movie => {
-        return movie.genre.toLowerCase().includes(genre);
-      });
-      //console.log('response in genre handler', response);
+      response = response.filter(movie =>
+        movie.genre.toLowerCase().includes(genre.toLowerCase())
+      );
     }
-    if (average) {
-      //console.log('average');
+
+    if (country) {
+      response = response.filter(movie =>
+        movie.country.toLowerCase().includes(country.toLowerCase())
+      );
     }
-    if (vote) {
-      //console.log('vote');
+    if (average_vote) {
+      //console.log(average_vote, 'average_vote');
+      if (average_vote > 10) {
+        response = 'average vote must be under 10';
+      }
+      if (average_vote <= 10)
+        response = response.filter(movie => movie.avg_vote >= average_vote);
+    }
+    if (response.length === 0) {
+      response = 'sorry, we could not find a search for that';
     }
   }
-  if (test(keys) === false) {
-    response = 'query must be genre, average, or vote';
+  if (!test(keys)) {
+    response = 'query must be genre, average_vote, or vote';
   }
 
   res.send(response);
