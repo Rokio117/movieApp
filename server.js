@@ -6,8 +6,8 @@ const movies = require('./movies.json');
 const cors = require('cors');
 
 const app = express();
-
-app.use(morgan('dev'));
+const morganSetting = process.env.NODE_ENV === 'production' ? 'tiny' : 'common';
+app.use(morgan(morganSetting));
 app.use(cors());
 app.use(helmet());
 
@@ -58,7 +58,6 @@ app.get('/movies', (req, res) => {
       );
     }
     if (average_vote) {
-      //console.log(average_vote, 'average_vote');
       if (average_vote > 10) {
         response = 'average vote must be under 10';
       }
@@ -76,6 +75,18 @@ app.get('/movies', (req, res) => {
   res.send(response);
 });
 
-app.listen(8000, () => {
+app.use((error, req, res, next) => {
+  let response;
+  if (process.env.NODE_ENV === 'production') {
+    response = { error: { message: 'server error' } };
+  } else {
+    response = { error };
+  }
+  res.status(500).json(response);
+});
+
+const PORT = process.env.PORT || 8000;
+
+app.listen(PORT, () => {
   console.log('server is listening at port 8000');
 });
